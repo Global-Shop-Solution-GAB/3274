@@ -1,0 +1,107 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+F.Intrinsic.Control.If(V.Caller.Hook,=,15954)
+	F.Intrinsic.Control.CallSub(Bdfload)
+F.Intrinsic.Control.Else
+	F.Intrinsic.Control.CallSub(Viewfs)
+F.Intrinsic.Control.EndIf
+
+Program.Sub.Main.End
+
+Program.Sub.BDFLoad.Start
+F.Intrinsic.Control.SetErrorHandler("BDFLoad_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.iRowCnt.Declare(Long)
+V.Local.i.Declare(Long)
+V.Local.sReadRow.Declare(String)
+V.Local.sWriteRow.Declare(String)
+V.Local.sJobSplit.Declare(String)
+V.Local.sJob.Declare(String)
+V.Local.sSuffix.Declare(String)
+V.Local.sSql.Declare(String)
+V.Local.sPart.Declare(String)
+
+'Olg002
+F.Intrinsic.BDF.Load("AUX001","AUX001")
+F.Intrinsic.BDF.Clone("AUX001","Clone")
+F.Intrinsic.BDF.ReadRowCount("AUX001",V.Local.iRowCnt)
+F.Intrinsic.Math.Sub(V.Local.iRowCnt,1,V.Local.iRowCnt)
+F.Intrinsic.Control.For(V.Local.i,0,V.Local.iRowCnt,1)
+	F.Intrinsic.BDF.ReadRow("AUX001",V.Local.i,V.Local.sReadRow)
+	F.Intrinsic.String.Split(V.Local.sReadRow,"|~|",V.Local.sReadRow)
+	V.Local.sJobSplit.Redim(0,0)
+	F.Intrinsic.String.Split(V.Local.sReadRow(1).Trim,"-",V.Local.sJobSplit)
+	F.Intrinsic.Control.If(V.Local.sJobSplit.UBound,=,0)
+		V.Local.sJob.Set(V.Local.sJobSplit.Trim)
+		V.Local.sSuffix.Set("")
+	F.Intrinsic.Control.Else
+		V.Local.sJob.Set(V.Local.sJobSplit(0).Trim)
+		V.Local.sSuffix.Set(V.Local.sJobSplit(1).Trim)
+	F.Intrinsic.Control.EndIf
+	F.Intrinsic.String.Concat("Select SCHEDULE,SCHEDULE_SUFFIX  from V_JOB_CT_FLX_SCHD where JOB = '",V.Local.sJob,"' and SUFFIX = '",V.Local.sSuffix,"' and LABOR_SEQ = '",V.Local.sReadRow(2).Trim,"'",V.Local.sSql)
+	F.ODBC.Connection!con.OpenRecordsetRO("rst",V.Local.sSql)
+	F.Intrinsic.Control.If(V.ODBC.con!rst.EOF,=,True)
+		F.Intrinsic.String.Concat(V.Local.sReadRow(0),"|~|",V.Local.sReadRow(1),"|~|",V.Local.sReadRow(2),"|~|",V.Local.sReadRow(3),"|~|",V.Local.sReadRow(4),"|~|",V.Local.sReadRow(5),"|~|",V.Local.sReadRow(6),"|~|",V.Local.sReadRow(7),"|~|",V.Local.sReadRow(8),V.Local.sWriteRow)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Left(V.Local.sReadRow(4),20,V.Local.sPart)
+		F.Intrinsic.String.Concat(V.Local.sReadRow(0),"|~|",V.Local.sReadRow(1),"|~|",V.Local.sReadRow(2),"|~|",V.Local.sReadRow(3),"|~|",V.Local.sPart,"//",V.ODBC.con!rst.FieldValTrim!SCHEDULE,"-",V.ODBC.con!rst.FieldValTrim!SCHEDULE_SUFFIX,"|~|",V.Local.sReadRow(5),"|~|",V.Local.sReadRow(6),"|~|",V.Local.sReadRow(7),"|~|",V.Local.sReadRow(8),V.Local.sWriteRow)
+	F.Intrinsic.Control.EndIf
+	F.ODBC.con!rst.Close
+	F.Intrinsic.BDF.WriteRow("Clone",V.Local.sWriteRow)
+F.Intrinsic.Control.Next(V.Local.i)
+F.Intrinsic.BDF.Save("Clone","AUX001")
+F.Intrinsic.Control.CallSub(Unload)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("BDFLoad_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_Timclock_Flex_Sched_View.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Unload)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.BDFLoad.End
+
+Program.Sub.Unload.Start
+F.ODBC.Connection!con.Close
+F.Intrinsic.Control.End
+
+Program.Sub.Unload.End
+
+Program.Sub.ViewFS.Start
+F.Intrinsic.Control.SetErrorHandler("ViewFS_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sParam.Declare(String)
+
+F.Intrinsic.String.Concat("VW!*!",V.Passed.009990.Trim,"!*!",V.Passed.009991.Trim,V.Local.sParam)
+F.Global.General.CallWrapperSync(5000,V.Local.sParam)
+F.Intrinsic.Control.CallSub(Unload)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("ViewFS_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_Timclock_Flex_Sched_View.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(Viewfs)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.ViewFS.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_Timclock_Flex_Sched_View$}$MITCH$}$8/28/2012
+${$3$}$0$}$$}$-1$}$-1$}$$}$1/1/1900$}$Advanced Laser
+Program.Sub.Comments.End
+
